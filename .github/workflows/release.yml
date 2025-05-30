@@ -58,7 +58,7 @@ jobs:
             echo "semantic-release version command failed."
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       # 6. 배포용 패키지 빌드
       - name: Build dist
@@ -68,8 +68,8 @@ jobs:
       # 7-1. TestPyPI 업로드
       - name: Upload to TestPyPI
         if: steps.version.outputs.released == 'true'
-        run: uv run twine upload \
-          --repository-url https://test.pypi.org/legacy/ \
+        run: uv run twine upload
+          --repository-url https://test.pypi.org/legacy/
           --skip-existing dist/*
         env:
           TWINE_USERNAME: __token__
