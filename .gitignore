@@ -184,7 +184,6 @@ uv.lock
 # PyPI configuration file
 .pypirc
 
-# Local test files
+# Local test files  
 test_images/
-*.tar
-test_registry/
+/test_registry/

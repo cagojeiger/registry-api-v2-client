@@ -4,148 +4,95 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an async Python client library for Docker Registry API v2, specifically designed to push Docker images from tar files to unauthenticated registry:2 containers without requiring Docker daemon.
+This is a Python library for Docker tar file operations, currently providing validation and inspection utilities for Docker image tar files created by `docker save`. The project focuses on tar file analysis without requiring Docker daemon or network operations.
 
 ## Development Commands
 
 ```bash
 # Install development environment (requires Python 3.11+)
-pip install -e ".[dev]"
+uv add --dev pytest pytest-cov mypy ruff black pre-commit
 
 # Run tests with coverage
-pytest
+uv run pytest
 
 # Run a specific test
-pytest tests/path/to/test_file.py::TestClass::test_method -v
-
-# Run tests with specific marker
-pytest -m "not integration"
+uv run pytest tests/test_validator.py::TestValidateDockerTar::test_validate_valid_tar -v
 
 # Type checking
-mypy src/
+uv run mypy src/
 
-# Linting
-ruff check src/
-ruff check --fix src/  # Auto-fix issues
+# Linting and formatting
+uv run ruff check src/
+uv run ruff check --fix src/  # Auto-fix issues
+uv run black src/
 
-# Code formatting
-black src/
-black --check src/  # Check without modifying
-
-# Run all checks (before committing)
-black src/ && ruff check src/ && mypy src/ && pytest
+# Run all pre-commit checks
+uv run pre-commit run --all-files
 
 # Build package
-python -m build
-
-# Install in development mode with all extras
-pip install -e ".[dev]"
+uv build
 ```
 
 ## Architecture Overview
 
-### Core Design Principles
+### Current Functionality
 
-1. **Functional Programming**: The codebase follows functional programming patterns with pure functions, immutability, and minimal side effects. See `docs/03-coding-style.md` for detailed guidelines.
+The library currently provides three main operations:
 
-2. **SOLID Principles**: All modules adhere to SOLID principles, particularly:
-   - Single Responsibility: Each module has one clear purpose
-   - Dependency Inversion: Code depends on protocols/abstractions, not concrete implementations
-
-3. **Async-First**: All I/O operations are async using `aiohttp` and `aiofiles`.
+1. **Tar Validation** (`validate_docker_tar`): Validates Docker tar file structure and manifest integrity
+2. **Manifest Extraction** (`get_tar_manifest`): Extracts manifest.json from tar files
+3. **Image Inspection** (`inspect_docker_tar`): Provides detailed image metadata analysis
 
 ### Project Structure
 
 ```
 src/registry_api_v2_client/
-├── core/            # Core functionality
-│   ├── client.py    # RegistryClient - main API entry point
-│   ├── models.py    # Pydantic data models
-│   └── exceptions.py # Custom exception hierarchy
-├── tar/             # Docker tar file handling
-│   ├── reader.py    # TarImageReader - async tar file reader
-│   └── models.py    # Tar-specific data models
-└── utils/           # Utility functions
-    ├── digest.py    # SHA256 digest calculations
-    └── helpers.py   # Other helper functions
+├── __init__.py          # Main API exports
+├── exceptions.py        # RegistryError, TarReadError, ValidationError
+├── models.py           # Pydantic models (ImageInspect, ImageConfig, LayerInfo)
+└── utils/              # Core utilities
+    ├── validator.py    # Tar validation and manifest extraction
+    └── inspect.py      # Detailed image inspection
 ```
 
-### Key Components and Their Interactions
+### Data Models
 
-```
-RegistryClient (main entry point)
-    ├── push_tar() orchestrates the entire upload process
-    │   ├── TarImageReader: Extracts image metadata from tar files
-    │   ├── Concurrent blob uploads using asyncio.Semaphore
-    │   └── Manifest creation and upload
-    │
-    ├── HTTP operations (all async)
-    │   ├── check_blob_exists(): HEAD request to check blob presence
-    │   ├── upload_blob(): Chunked upload with progress tracking
-    │   └── upload_manifest(): Final step to register the image
-    │
-    └── Error handling with custom exception hierarchy
-```
+The library uses Pydantic models for type safety and serialization:
 
-### Critical Design Decisions
+- **ImageInspect**: Complete image inspection result with metadata, config, and layers
+- **ImageConfig**: Docker image configuration (architecture, OS, environment, etc.)
+- **LayerInfo**: Individual layer information (digest, size, media type)
 
-1. **No Authentication**: By design, this library only supports unauthenticated registry:2 containers. All auth-related code has been intentionally excluded.
+### Key Design Principles
 
-2. **Memory Efficiency**: Large files are streamed using async iterators. Never load entire tar files or layers into memory.
-
-3. **Concurrent Uploads**: Layer uploads use semaphore-based concurrency control (default 3, configurable). This balances performance with resource usage.
-
-4. **Progress Tracking**: The progress callback pattern supports both sync and async callbacks, checked via `asyncio.iscoroutinefunction()`.
-
-### Data Flow for push_tar()
-
-1. Read tar file manifest → Extract image metadata
-2. For each layer (concurrently):
-   - Check if blob exists (HEAD request)
-   - If not, stream upload in 5MB chunks
-3. Upload config blob
-4. Create and upload manifest with all blob references
-5. Return manifest digest
-
-### Key Patterns
-
-- **Context Managers**: Both `RegistryClient` and `TarImageReader` are async context managers
-- **Stream Processing**: Layer data uses `AsyncIterator[bytes]` for memory efficiency
-- **Type Safety**: Extensive use of type hints and protocols for compile-time safety
+1. **Pure Functions**: All operations are stateless and deterministic
+2. **Memory Efficiency**: Tar files are processed without loading entire contents into memory
+3. **Type Safety**: Extensive use of Pydantic models and type hints
+4. **Synthetic Testing**: Tests use small generated tar files rather than large real images
 
 ## Important Implementation Notes
 
-1. **Digest Format**: Always use format `algorithm:hexdigest` (e.g., `sha256:abc123...`)
-
-2. **URL Handling**: Registry responses may return relative URLs in Location headers. Always normalize with `urljoin()`.
-
-3. **Error Recovery**: Network operations should raise specific exceptions (`BlobUploadError`, `ManifestError`, etc.) with context.
-
-4. **Tar File Structure**: Docker save creates tar files with:
-   - `manifest.json`: Array of image manifests
-   - `{hash}.json`: Image configuration files
-   - `{hash}/layer.tar`: Compressed layer data
+1. **Tar File Structure**: Docker save creates tar files with:
+   - `manifest.json`: Array of image manifests with Config and Layers references
+   - `blobs/sha256/{hash}`: Config files (JSON) and layer data
    - `repositories`: Repository/tag mapping (optional)
 
-5. **Registry API Quirks**:
-   - Blob uploads use a three-step process: initiate → upload chunks → finalize
-   - Manifest upload returns digest in `Docker-Content-Digest` header
-   - Always check blob existence before uploading to avoid redundant transfers
+2. **Validation Logic**: 
+   - Checks tar file format validity
+   - Validates manifest.json structure and content
+   - Verifies all referenced config and layer files exist in tar
+   - Supports both OCI and Docker manifest formats
 
-## Testing Strategy
+3. **Error Handling**: 
+   - `ValidationError`: Invalid tar structure or missing files
+   - `TarReadError`: File system or JSON parsing errors
+   - All exceptions inherit from `RegistryError` base class
 
-The project uses pytest with async support:
+4. **Testing Strategy**:
+   - Synthetic tar files for fast, deterministic tests
+   - No dependency on large test images or external resources
+   - Comprehensive edge case coverage (malformed JSON, missing files, etc.)
 
-1. **Unit Tests**: Test individual components in isolation
-2. **Integration Tests**: Test against real registry:2 container (mark with `@pytest.mark.integration`)
-3. **Fixtures**: Use pytest-asyncio fixtures for async setup/teardown
-4. **Coverage**: Minimum 80% code coverage target
+## Future Registry API Integration
 
-## Version Management
-
-The project uses `python-semantic-release` with conventional commits:
-- `feat:` → minor version bump
-- `fix:` → patch version bump
-- `feat!:` or `BREAKING CHANGE:` → major version bump
-
-See `docs/10-versioning.md` for detailed versioning guidelines.
+The current codebase is structured to eventually support Docker Registry API v2 operations. The foundation for tar file analysis provides the building blocks for future registry push/pull functionality.

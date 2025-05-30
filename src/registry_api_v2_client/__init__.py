@@ -1,23 +1,25 @@
-"""Registry API v2 Client - Async Python client for Docker Registry API v2."""
+"""Registry API v2 Client - Docker Registry API v2 client with tar file utilities."""
 
 __version__ = "0.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
 
-from .core.registry_client import RegistryClient
 from .exceptions import (
-    BlobUploadError,
-    ManifestError,
-    RegistryConnectionError,
     RegistryError,
     TarReadError,
+    ValidationError,
 )
+from .models import ImageConfig, ImageInspect, LayerInfo
+from .utils import get_tar_manifest, inspect_docker_tar, validate_docker_tar
 
 __all__ = [
-    "RegistryClient",
     "RegistryError",
-    "BlobUploadError",
-    "ManifestError",
     "TarReadError",
-    "RegistryConnectionError",
+    "ValidationError",
+    "ImageConfig",
+    "ImageInspect",
+    "LayerInfo",
+    "validate_docker_tar",
+    "get_tar_manifest",
+    "inspect_docker_tar",
 ]

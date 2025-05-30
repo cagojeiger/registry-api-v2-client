@@ -1,7 +1,7 @@
 [project]
 name = "registry-api-v2-client"
 version = "0.1.0"
-description = "Async Python client for pushing Docker images to unauthenticated registry:2 containers"
+description = "Docker Registry API v2 client with tar file utilities"
 readme = "README.md"
 authors = [
     { name = "Kang Hee Yong", email = "cagojeiger@naver.com" }
@@ -20,14 +20,12 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "aiohttp>=3.8.0",
-    "aiofiles>=23.0.0",
+    "pydantic>=2.11.5",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
@@ -132,3 +130,11 @@ target-version = ["py311", "py312"]
 [tool.isort]
 profile = "black"
 line_length = 88
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=1.0.0",
+    "pytest-cov>=6.1.1",
+]
