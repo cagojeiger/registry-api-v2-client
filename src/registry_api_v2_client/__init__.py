@@ -1,6 +1,6 @@
 """Registry API v2 Client - Docker Registry API v2 client with tar file utilities."""
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
 
