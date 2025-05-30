@@ -18,6 +18,9 @@ pytest
 # Run a specific test
 pytest tests/path/to/test_file.py::TestClass::test_method -v
 
+# Run tests with specific marker
+pytest -m "not integration"
+
 # Type checking
 mypy src/
 
@@ -31,6 +34,12 @@ black --check src/  # Check without modifying
 
 # Run all checks (before committing)
 black src/ && ruff check src/ && mypy src/ && pytest
+
+# Build package
+python -m build
+
+# Install in development mode with all extras
+pip install -e ".[dev]"
 ```
 
 ## Architecture Overview
@@ -44,6 +53,22 @@ black src/ && ruff check src/ && mypy src/ && pytest
    - Dependency Inversion: Code depends on protocols/abstractions, not concrete implementations
 
 3. **Async-First**: All I/O operations are async using `aiohttp` and `aiofiles`.
+
+### Project Structure
+
+```
+src/registry_api_v2_client/
+├── core/            # Core functionality
+│   ├── client.py    # RegistryClient - main API entry point
+│   ├── models.py    # Pydantic data models
+│   └── exceptions.py # Custom exception hierarchy
+├── tar/             # Docker tar file handling
+│   ├── reader.py    # TarImageReader - async tar file reader
+│   └── models.py    # Tar-specific data models
+└── utils/           # Utility functions
+    ├── digest.py    # SHA256 digest calculations
+    └── helpers.py   # Other helper functions
+```
 
 ### Key Components and Their Interactions
 
@@ -106,3 +131,21 @@ RegistryClient (main entry point)
    - Blob uploads use a three-step process: initiate → upload chunks → finalize
    - Manifest upload returns digest in `Docker-Content-Digest` header
    - Always check blob existence before uploading to avoid redundant transfers
+
+## Testing Strategy
+
+The project uses pytest with async support:
+
+1. **Unit Tests**: Test individual components in isolation
+2. **Integration Tests**: Test against real registry:2 container (mark with `@pytest.mark.integration`)
+3. **Fixtures**: Use pytest-asyncio fixtures for async setup/teardown
+4. **Coverage**: Minimum 80% code coverage target
+
+## Version Management
+
+The project uses `python-semantic-release` with conventional commits:
+- `feat:` → minor version bump
+- `fix:` → patch version bump
+- `feat!:` or `BREAKING CHANGE:` → major version bump
+
+See `docs/10-versioning.md` for detailed versioning guidelines.

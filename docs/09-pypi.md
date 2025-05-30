@@ -1,6 +1,6 @@
 # PyPI 등록 과정
 
-이 문서는 CLI-ONPREM 패키지를 PyPI에 등록하는 과정을 설명합니다.
+이 문서는 registry-api-v2-client 패키지를 PyPI에 등록하는 과정을 설명합니다.
 
 ## 사전 준비 사항
 
@@ -136,8 +136,8 @@ jobs:
 
 ### 5. 배포 확인
 
-- TestPyPI: [https://test.pypi.org/project/cli-onprem/](https://test.pypi.org/project/cli-onprem/)
-- PyPI: [https://pypi.org/project/cli-onprem/](https://pypi.org/project/cli-onprem/)
+- TestPyPI: [https://test.pypi.org/project/registry-api-v2-client/](https://test.pypi.org/project/registry-api-v2-client/)
+- PyPI: [https://pypi.org/project/registry-api-v2-client/](https://pypi.org/project/registry-api-v2-client/)
 
 ## 수동 배포 방법
 

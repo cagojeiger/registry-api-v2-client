@@ -327,12 +327,16 @@ async def check_blob_exists(repo: Repository, digest: Digest) -> bool:
 ### 모듈 구성
 ```
 src/registry_api_v2_client/
-├── api/              # HTTP API 관련 순수 함수들
-│   ├── blob.py      # blob 관련 API 함수
-│   ├── manifest.py  # manifest 관련 API 함수
-│   └── common.py    # 공통 헬퍼 함수
-├── tar/             # tar 파일 처리 함수들
-├── utils/           # 유틸리티 순수 함수들
+├── core/            # 핵심 기능
+│   ├── client.py    # Registry 클라이언트
+│   ├── models.py    # 데이터 모델
+│   └── exceptions.py # 커스텀 예외
+├── tar/             # tar 파일 처리
+│   ├── reader.py    # tar 파일 읽기
+│   └── models.py    # tar 관련 모델
+├── utils/           # 유틸리티 함수
+│   ├── digest.py    # 다이제스트 계산
+│   └── helpers.py   # 기타 헬퍼 함수
 └── types.py         # 타입 정의
 ```
 

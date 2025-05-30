@@ -16,12 +16,14 @@ registry-api-v2-client/
 │       │   ├── client.py            # API 클라이언트
 │       │   ├── models.py            # 데이터 모델
 │       │   └── exceptions.py        # 커스텀 예외
-│       ├── utils/                   # 유틸리티 함수
+│       ├── tar/                     # tar 파일 처리
 │       │   ├── __init__.py
-│       │   └── helpers.py
-│       └── services/                # 비즈니스 로직
+│       │   ├── reader.py            # tar 파일 읽기
+│       │   └── models.py            # tar 관련 모델
+│       └── utils/                   # 유틸리티 함수
 │           ├── __init__.py
-│           └── registry.py
+│           ├── digest.py            # 다이제스트 계산
+│           └── helpers.py           # 기타 헬퍼 함수
 ├── tests/                           # 테스트 코드
 │   ├── __init__.py
 │   ├── conftest.py                  # pytest 설정 및 fixtures

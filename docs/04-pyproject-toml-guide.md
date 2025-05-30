@@ -26,17 +26,15 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Typing :: Typed",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
-    "httpx>=0.24.0",
+    "aiohttp>=3.8.0",
+    "aiofiles>=23.0.0",
     "pydantic>=2.0.0",
-    "typing-extensions>=4.5.0; python_version<'3.11'",
 ]
 
 [project.optional-dependencies]
@@ -108,7 +106,7 @@ exclude_lines = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -124,7 +122,7 @@ ignore_errors = true
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
@@ -148,7 +146,7 @@ ignore = [
 
 [tool.black]
 line-length = 88
-target-version = ["py39", "py310", "py311", "py312"]
+target-version = ["py311", "py312"]
 
 [tool.isort]
 profile = "black"
@@ -194,7 +192,7 @@ description = "Short description"  # 한 줄 설명
 readme = "README.md"  # README 파일 경로
 license = {text = "MIT"}  # 또는 {file = "LICENSE"}
 authors = [{name = "Name", email = "email@example.com"}]
-requires-python = ">=3.9"  # Python 버전 요구사항
+requires-python = ">=3.11"  # Python 버전 요구사항
 dependencies = ["package>=1.0.0"]  # 런타임 의존성
 ```
 
@@ -251,7 +249,7 @@ skip_covered = true
 #### MyPy (타입 체킹)
 ```toml
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 strict = true  # 엄격한 타입 체킹
 show_error_codes = true
 ```
@@ -260,7 +258,7 @@ show_error_codes = true
 ```toml
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]  # 활성화할 규칙
@@ -271,7 +269,7 @@ ignore = ["E501"]  # 무시할 규칙
 ```toml
 [tool.black]
 line-length = 88
-target-version = ["py39"]
+target-version = ["py311"]
 ```
 
 ## 동적 버전 관리
@@ -331,7 +329,7 @@ build-backend = "hatchling.build"
 name = "simple-package"
 version = "0.1.0"
 description = "A simple package"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 ```
 
 ### 풀 설정 (복잡한 프로젝트)

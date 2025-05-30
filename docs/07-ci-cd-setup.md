@@ -305,7 +305,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install bump2version
+        pip install python-semantic-release
     
     - name: Configure Git
       run: |
@@ -314,7 +314,7 @@ jobs:
     
     - name: Bump version
       run: |
-        bump2version ${{ github.event.inputs.bump }} --verbose
+        semantic-release version --${{ github.event.inputs.bump }}
     
     - name: Push changes
       run: |
