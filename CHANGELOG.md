@@ -2,6 +2,43 @@
 
 <!-- version list -->
 
+## v1.2.0 (2025-05-31)
+
+### Bug Fixes
+
+- Async pytest fixtures and linting issues
+  ([#2](https://github.com/cagojeiger/registry-api-v2-client/pull/2),
+  [`74fb7de`](https://github.com/cagojeiger/registry-api-v2-client/commit/74fb7dee2ea4a7c5be5fd7cce90adfcd531f84fb))
+
+- Correct Docker Registry API v2 blob upload protocol
+  ([#2](https://github.com/cagojeiger/registry-api-v2-client/pull/2),
+  [`74fb7de`](https://github.com/cagojeiger/registry-api-v2-client/commit/74fb7dee2ea4a7c5be5fd7cce90adfcd531f84fb))
+
+- Correct query parameter handling in blob upload URL
+  ([#2](https://github.com/cagojeiger/registry-api-v2-client/pull/2),
+  [`74fb7de`](https://github.com/cagojeiger/registry-api-v2-client/commit/74fb7dee2ea4a7c5be5fd7cce90adfcd531f84fb))
+
+- Resolve ruff linting errors across codebase
+  ([#2](https://github.com/cagojeiger/registry-api-v2-client/pull/2),
+  [`74fb7de`](https://github.com/cagojeiger/registry-api-v2-client/commit/74fb7dee2ea4a7c5be5fd7cce90adfcd531f84fb))
+
+- Update CI workflow for async codebase
+  ([#2](https://github.com/cagojeiger/registry-api-v2-client/pull/2),
+  [`74fb7de`](https://github.com/cagojeiger/registry-api-v2-client/commit/74fb7dee2ea4a7c5be5fd7cce90adfcd531f84fb))
+
+### Documentation
+
+- Convert CLAUDE.md to Korean for consistency
+  ([#2](https://github.com/cagojeiger/registry-api-v2-client/pull/2),
+  [`74fb7de`](https://github.com/cagojeiger/registry-api-v2-client/commit/74fb7dee2ea4a7c5be5fd7cce90adfcd531f84fb))
+
+### Features
+
+- Async Docker Registry API v2 client with functional architecture
+  ([#2](https://github.com/cagojeiger/registry-api-v2-client/pull/2),
+  [`74fb7de`](https://github.com/cagojeiger/registry-api-v2-client/commit/74fb7dee2ea4a7c5be5fd7cce90adfcd531f84fb))
+
+
 ## v1.1.2 (2025-05-31)
 
 ### Bug Fixes

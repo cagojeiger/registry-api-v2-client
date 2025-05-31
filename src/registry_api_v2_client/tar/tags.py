@@ -101,21 +101,30 @@ def extract_repo_tags_from_repositories(tar_path: str) -> list[str]:
 
 
 def extract_original_tags(tar_path: str) -> list[str]:
-    """Extract original image tags from Docker tar file.
+    """Docker tar 파일에서 원본 이미지 태그를 추출합니다.
 
-    This function tries multiple methods to extract the original tags:
-    1. RepoTags from manifest.json (preferred)
-    2. Repository tags from repositories file (fallback)
+    여러 방법을 시도하여 원본 태그를 추출합니다:
+    1. manifest.json의 RepoTags (우선순위)
+    2. repositories 파일의 저장소 태그 (대안)
 
     Args:
-        tar_path: Path to Docker tar file
+        tar_path: Docker tar 파일 경로
+            - 문자열 경로: "/Users/user/images/nginx.tar"
+            - 상대경로: "./docker-exports/app.tar"
 
     Returns:
-        List of original repository tags
+        list[str]: 원본 저장소 태그 목록 (예: ["nginx:alpine", "myapp:latest"])
 
     Raises:
-        TarReadError: If tar file cannot be read
-        ValidationError: If no valid tags can be extracted
+        TarReadError: tar 파일을 읽을 수 없는 경우
+        ValidationError: 유효한 태그를 추출할 수 없는 경우
+
+    Examples:
+        # Docker tar 파일에서 원본 태그 추출
+        tags = extract_original_tags("nginx.tar")
+        for tag in tags:
+            print(f"원본 태그: {tag}")
+        # 출력: 원본 태그: nginx:alpine
     """
     # Try manifest.json first (more reliable)
     try:
@@ -138,18 +147,28 @@ def extract_original_tags(tar_path: str) -> list[str]:
 
 
 def parse_repository_tag(repo_tag: str) -> tuple[str, str]:
-    """Parse repository:tag string into repository and tag components.
+    """저장소:태그 문자열을 저장소와 태그 구성요소로 파싱합니다.
 
     Args:
-        repo_tag: Repository tag string (e.g., "nginx:alpine", "localhost:5000/myapp:latest")
+        repo_tag: 저장소 태그 문자열
+            - 예: "nginx:alpine", "localhost:5000/myapp:latest"
+            - 레지스트리 포함: "registry.io/company/app:v1.0"
 
     Returns:
-        Tuple of (repository, tag)
+        tuple[str, str]: (저장소, 태그) 튜플
 
     Examples:
-        "nginx:alpine" -> ("nginx", "alpine")
-        "localhost:5000/myapp:latest" -> ("localhost:5000/myapp", "latest")
-        "myapp" -> ("myapp", "latest")  # default tag
+        # 기본 이미지 태그 파싱
+        repo, tag = parse_repository_tag("nginx:alpine")
+        # 결과: ("nginx", "alpine")
+
+        # 레지스트리 포함 태그 파싱
+        repo, tag = parse_repository_tag("localhost:5000/myapp:latest")
+        # 결과: ("localhost:5000/myapp", "latest")
+
+        # 태그 없는 경우 (기본값 사용)
+        repo, tag = parse_repository_tag("myapp")
+        # 결과: ("myapp", "latest")
     """
     if ":" in repo_tag:
         # Split only on the last ':' to handle registry URLs like localhost:5000/repo:tag
@@ -165,13 +184,24 @@ def parse_repository_tag(repo_tag: str) -> tuple[str, str]:
 
 
 def get_primary_tag(tar_path: str) -> tuple[str, str] | None:
-    """Get the primary (first) repository and tag from tar file.
+    """tar 파일에서 주요(첫 번째) 저장소와 태그를 가져옵니다.
 
     Args:
-        tar_path: Path to Docker tar file
+        tar_path: Docker tar 파일 경로
+            - 문자열 경로: "/Users/user/images/nginx.tar"
+            - 상대경로: "./exports/multi-tag-app.tar"
 
     Returns:
-        Tuple of (repository, tag) or None if no tags found
+        tuple[str, str] | None: (저장소, 태그) 튜플 또는 태그가 없는 경우 None
+
+    Examples:
+        # tar 파일에서 주요 태그 추출
+        primary = get_primary_tag("nginx.tar")
+        if primary:
+            repo, tag = primary
+            print(f"주요 태그: {repo}:{tag}")
+        else:
+            print("태그를 찾을 수 없습니다")
     """
     try:
         original_tags = extract_original_tags(tar_path)

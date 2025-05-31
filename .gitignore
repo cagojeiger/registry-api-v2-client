@@ -187,3 +187,8 @@ uv.lock
 # Local test files  
 test_images/
 /test_registry/
+
+# Generated documentation (temporary)
+docs-generated/
+docs-korean/
+docs-clean/

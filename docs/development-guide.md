@@ -1,102 +1,156 @@
-# Development Guide
+# 개발 가이드
 
-Complete guide for developing with the async Registry API v2 Client.
+비동기 Registry API v2 클라이언트 개발을 위한 완전한 가이드입니다.
 
-## Quick Start
+## 🚀 빠른 시작
 
-### Installation
+### 설치
 ```bash
-# Install the package
+# 패키지 설치
 pip install registry-api-v2-client
 
-# For development
+# 개발용 설치
 git clone <repository>
 cd registry-api-v2-client
-uv sync --dev
+make dev-install  # 또는 uv sync --dev
 ```
 
-### Basic Usage Example
+### 기본 사용 예제
 ```python
 import asyncio
 from registry_api_v2_client import (
     check_registry_connectivity,
     push_docker_tar,
+    push_docker_tar_with_original_tags,
     list_repositories,
     list_tags,
-    get_image_info
+    get_image_info,
+    extract_original_tags,
+    validate_docker_tar
 )
 
 async def main():
     registry_url = "http://localhost:15000"
     
-    # Check if registry is accessible
+    # 1. 레지스트리 접근성 확인
     accessible = await check_registry_connectivity(registry_url)
-    print(f"Registry accessible: {accessible}")
+    print(f"✅ 레지스트리 접근 가능: {accessible}")
     
-    # Push a Docker tar file
+    # 2. tar 파일 검증 (동기 함수)
+    tar_file = "my-image.tar"
+    from pathlib import Path
+    if validate_docker_tar(Path(tar_file)):
+        print(f"✅ 유효한 Docker tar 파일: {tar_file}")
+        
+        # 원본 태그 추출
+        original_tags = extract_original_tags(tar_file)
+        print(f"📦 발견된 태그: {original_tags}")
+    
+    # 3. Docker tar 파일 푸시 (지정된 태그)
     digest = await push_docker_tar(
-        "my-image.tar",      # Docker tar file path
-        registry_url,        # Registry URL
-        "myapp",            # Repository name  
-        "v1.0.0"            # Tag
+        tar_file,           # Docker tar 파일 경로
+        registry_url,       # 레지스트리 URL
+        "myapp",           # 저장소 이름  
+        "v1.0.0"           # 태그
     )
-    print(f"Pushed image with digest: {digest}")
+    print(f"🚀 푸시 완료, digest: {digest}")
     
-    # List all repositories
+    # 4. 원본 태그로 푸시 (자동 태그 추출)
+    if original_tags:
+        digest = await push_docker_tar_with_original_tags(tar_file, registry_url)
+        print(f"🏷️ 원본 태그로 푸시 완료: {digest}")
+    
+    # 5. 저장소 목록 조회
     repos = await list_repositories(registry_url)
-    print(f"Repositories: {repos}")
+    print(f"📂 저장소 목록: {repos}")
     
-    # List tags for a repository
-    tags = await list_tags(registry_url, "myapp")
-    print(f"Tags for myapp: {tags}")
-    
-    # Get detailed image information
-    info = await get_image_info(registry_url, "myapp", "v1.0.0")
-    print(f"Image size: {info.get('size', 'unknown')} bytes")
+    # 6. 특정 저장소의 태그 목록 조회
+    if repos:
+        tags = await list_tags(registry_url, repos[0])
+        print(f"🏷️ {repos[0]} 태그: {tags}")
+        
+        # 7. 이미지 상세 정보 조회
+        if tags:
+            info = await get_image_info(registry_url, repos[0], tags[0])
+            print(f"ℹ️ 이미지 크기: {info.get('size', 'unknown'):,} bytes")
+            print(f"🏗️ 아키텍처: {info.get('architecture', 'unknown')}")
 
-# Run the async code
+# 비동기 코드 실행
 asyncio.run(main())
 ```
 
-## Development Environment Setup
+## 🛠️ 개발 환경 설정
 
-### Prerequisites
-- **Python 3.11+** (3.12 recommended)
-- **Docker** for local registry
-- **uv** for fast package management
+### 📋 시스템 요구사항
+- **Python 3.11+** (3.12 권장) - 최신 타입 힌트 지원 필요
+- **Docker** - 로컬 레지스트리 및 테스트용
+- **uv** - 빠른 패키지 관리자 (권장)
 
-### Install uv (Recommended)
+### uv 설치 (권장)
 ```bash
-# Install uv
+# uv 설치 (macOS/Linux)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Or via pip
+# 또는 pip로 설치
 pip install uv
+
+# Windows (PowerShell)
+powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"
+
+# 설치 확인
+uv --version
 ```
 
-### Project Setup
+### 프로젝트 설정
 ```bash
-# Clone and setup
+# 1. 저장소 클론
 git clone <repository>
 cd registry-api-v2-client
 
-# Install development dependencies
-uv sync --dev
+# 2. 개발 의존성 설치
+make dev-install          # 또는 uv sync --dev
 
-# Verify installation
-python --version  # Should be 3.11+
+# 3. 설치 확인
+python --version          # 3.11+ 확인
+uv run python -c \"import registry_api_v2_client; print('✅ 패키지 설치 완료')\"
+
+# 4. 간단한 테스트 실행
 uv run pytest tests/test_validator.py -v
 ```
 
-## Local Registry Setup
-
-### Why Port 15000?
-We use port **15000** (not 5000) to avoid conflicts with other services and match our CI setup.
-
-### Quick Start with Docker Compose
+### 개발 환경 확인
 ```bash
-# Start registry
+# Python 버전 및 환경 확인
+uv run python --version
+uv run python -c \"
+import sys
+import asyncio
+import aiohttp
+print(f'Python: {sys.version}')
+print(f'asyncio: {asyncio.__version__ if hasattr(asyncio, '__version__') else 'built-in'}')
+print(f'aiohttp: {aiohttp.__version__}')
+print('✅ 모든 의존성이 올바르게 설치되었습니다')
+\"
+```"
+
+## 🐳 로컬 레지스트리 설정
+
+### 포트 15000을 사용하는 이유?
+포트 **15000**을 사용하는 이유 (표준 5000이 아닌):
+- 다른 서비스와의 충돌 방지 (macOS AirPlay 등)
+- CI 환경과의 일관성 유지
+- 개발 환경 격리
+
+### Docker Compose로 빠른 시작
+```bash
+# 레지스트리 시작 (권장 방법)
 make start-registry-compose
+
+# 레지스트리 상태 확인
+curl http://localhost:15000/v2/
+
+# 레지스트리 중지
+make stop-registry-compose
 
 # Registry is now available at http://localhost:15000
 curl http://localhost:15000/v2/
