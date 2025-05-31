@@ -67,8 +67,8 @@ async def extract_blob_from_tar(tar_path: str, digest: str) -> bytes:
                 if extracted_file is None:
                     raise RegistryError(f"Could not extract blob from tar: {digest}")
                 return extracted_file.read()
-            except KeyError:
-                raise RegistryError(f"Blob not found in tar: {digest}")
+            except KeyError as e:
+                raise RegistryError(f"Blob not found in tar: {digest}") from e
 
     blob_data: bytes = await asyncio.get_event_loop().run_in_executor(
         None, _extract_blob
@@ -223,7 +223,11 @@ async def upload_blob_monolithic(
     Returns:
         Blob digest from registry
     """
-    url = f"{config.base_url}/v2/{repository}/blobs/uploads/?digest={digest}"
+    # Start upload session
+    upload_session = await start_upload(session, config, repository)
+
+    # Complete upload with digest
+    url = f"{upload_session.upload_url}?digest={digest}"
 
     headers = {
         "Content-Type": "application/octet-stream",
