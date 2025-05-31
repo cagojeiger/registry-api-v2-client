@@ -1,83 +1,110 @@
-# Architecture Guide
+# 아키텍처 가이드
 
-Deep dive into the async functional architecture of the Registry API v2 Client.
+Registry API v2 클라이언트의 비동기 함수형 아키텍처에 대한 심화 분석입니다.
 
-## Overview
+## 🔍 개요
 
-This Registry API v2 Client is built using **async functional programming** principles, designed for high-performance concurrent operations with Docker registries. Unlike traditional synchronous clients, this implementation leverages Python's asyncio ecosystem for maximum throughput and efficiency.
+이 Registry API v2 클라이언트는 **비동기 함수형 프로그래밍** 원칙을 기반으로 구축되었으며, Docker 레지스트리와의 고성능 동시 작업을 위해 설계되었습니다. 기존의 동기식 클라이언트와 달리, Python의 asyncio 생태계를 활용하여 최대 처리량과 효율성을 제공합니다.
 
-## Why Async Functional Architecture?
+## 🤔 왜 비동기 함수형 아키텍처인가?
 
-### The Problem with Synchronous Clients
+### 동기식 클라이언트의 문제점
 
-Traditional registry clients suffer from:
-- **Sequential operations**: Push one blob, wait, push next blob
-- **Blocking I/O**: File operations block the entire thread
-- **Poor scalability**: Can't efficiently handle multiple operations
-- **Resource waste**: CPU idle during network/disk waits
+기존 레지스트리 클라이언트들의 한계:
+- **순차적 작업**: blob 하나 푸시 → 대기 → 다음 blob 푸시
+- **블로킹 I/O**: 파일 작업이 전체 스레드를 차단
+- **확장성 부족**: 여러 작업을 효율적으로 처리할 수 없음
+- **자원 낭비**: 네트워크/디스크 대기 중 CPU 유휴 상태
 
 ```python
-# ❌ Typical synchronous approach (slow)
+# ❌ 일반적인 동기식 접근법 (느림)
 def sync_push_tar(tar_path, registry_url, repo, tag):
-    # Blocks thread during file I/O
+    # 파일 I/O 중 스레드 차단
     validate_tar(tar_path)  
     config, layers = process_tar(tar_path)
     
-    # Sequential blob uploads (very slow)
+    # 순차적 blob 업로드 (매우 느림)
     for blob in [config] + layers:
-        upload_blob(blob)  # Wait for each upload
+        upload_blob(blob)  # 각 업로드를 기다림
     
-    # Finally upload manifest
+    # 마지막에 매니페스트 업로드
     return upload_manifest(config, layers, repo, tag)
 ```
 
-### Our Async Solution
+### 우리의 비동기 솔루션
 
 ```python
-# ✅ Our async approach (fast)
+# ✅ 우리의 비동기 접근법 (빠름)
 async def async_push_tar(tar_path, registry_url, repo, tag):
-    # File I/O in thread pool (non-blocking)
+    # 스레드 풀에서 파일 I/O (논블로킹)
     config, layers = await asyncio.get_event_loop().run_in_executor(
         None, process_tar, tar_path
     )
     
-    # Concurrent blob uploads (much faster)
+    # 동시 blob 업로드 (훨씬 빠름)
     upload_tasks = [upload_blob(blob) for blob in [config] + layers]
     await asyncio.gather(*upload_tasks)
     
-    # Upload manifest
+    # 매니페스트 업로드
     return await upload_manifest(config, layers, repo, tag)
 ```
 
-### Performance Benefits
+### 성능 향상 효과
 
-**Real-world performance comparison:**
-- **Sequential uploads**: 5 layers × 30 seconds = 150 seconds
-- **Concurrent uploads**: max(30 seconds) = 30 seconds  
-- **Improvement**: 5x faster
+**실제 성능 비교 결과:**
+- **순차 업로드**: 5개 레이어 × 30초 = 150초
+- **동시 업로드**: max(30초) = 30초  
+- **성능 향상**: **5배 빠름** 🚀
 
-## Core Architectural Principles
-
-### 1. Async First
-
-Every main operation is an async function designed for concurrency:
+### 네트워크 효율성
 
 ```python
-# All main API functions are async
-async def push_docker_tar(...) -> str
-async def list_repositories(...) -> List[str]  
-async def check_registry_connectivity(...) -> bool
-async def get_image_info(...) -> dict
-
-# Enables concurrent usage
-repos = await list_repositories(registry_url)
-info_tasks = [get_image_info(registry_url, repo, "latest") for repo in repos]
-all_info = await asyncio.gather(*info_tasks)  # Runs concurrently
+# 예시: 대용량 이미지 (1GB, 10개 레이어)
+# 
+# 동기식 방식:
+#   레이어1 업로드 (100MB) → 20초
+#   레이어2 업로드 (100MB) → 20초  
+#   ...
+#   총 시간: 200초
+#
+# 비동기 방식:
+#   모든 레이어 동시 업로드 → 네트워크 대역폭 최대 활용
+#   총 시간: 40초 (5배 빠름)
 ```
 
-### 2. Immutable Data Structures
+## 🏗️ 핵심 아키텍처 원칙
 
-All data types use `@dataclass(frozen=True)` for thread safety and predictability:
+### 1. 비동기 우선 (Async First)
+
+모든 주요 작업은 동시성을 위해 설계된 비동기 함수입니다:
+
+```python
+# 모든 주요 API 함수는 비동기
+async def push_docker_tar(...) -> str
+async def list_repositories(...) -> list[str]  
+async def check_registry_connectivity(...) -> bool
+async def get_image_info(...) -> ManifestInfo
+
+# 동시 실행 가능
+async def concurrent_operations():
+    registry_url = "http://localhost:15000"
+    
+    # 여러 저장소 정보를 동시에 조회
+    repos = await list_repositories(registry_url)
+    info_tasks = [
+        get_image_info(registry_url, repo, "latest") 
+        for repo in repos
+    ]
+    all_info = await asyncio.gather(*info_tasks)  # 동시 실행!
+    
+    # 결과 처리
+    for repo, info in zip(repos, all_info):
+        print(f"{repo}: {info.total_size:,} bytes")
+```
+
+### 2. 불변 데이터 구조 (Immutable Data)
+
+모든 데이터 타입은 스레드 안전성과 예측 가능성을 위해 `@dataclass(frozen=True)`를 사용합니다:
 
 ```python
 @dataclass(frozen=True)
@@ -86,17 +113,52 @@ class BlobInfo:
     size: int
     media_type: str = "application/octet-stream"
     
-    # Properties are computed, not stored
+    # 속성은 계산되며 저장되지 않음 (순수 함수)
     @property
     def digest_short(self) -> str:
         return self.digest.split(':')[1][:12] if ':' in self.digest else self.digest[:12]
+    
+    @property
+    def size_mb(self) -> float:
+        return self.size / (1024 * 1024)
 
 @dataclass(frozen=True) 
 class ManifestInfo:
+    schema_version: int
+    media_type: str
     config: BlobInfo
-    layers: tuple[BlobInfo, ...]  # Tuple, not list (immutable)
-    schema_version: int = 2
-    media_type: str = "application/vnd.docker.distribution.manifest.v2+json"
+    layers: tuple[BlobInfo, ...]  # tuple 사용 (list가 아닌, 불변)
+    digest: str | None = None
+    
+    @property
+    def total_size(self) -> int:
+        """전체 크기 계산 (config + 모든 레이어)"""
+        return self.config.size + sum(layer.size for layer in self.layers)
+    
+    @property
+    def layer_count(self) -> int:
+        return len(self.layers)
+```
+
+### 3. 순수 함수 원칙 (Pure Functions)
+
+부작용 없는 예측 가능한 함수들:
+
+```python
+# ✅ 순수 함수 - 입력이 같으면 출력도 항상 같음
+def parse_repository_tag(repo_tag: str) -> tuple[str, str]:
+    """저장소:태그 문자열을 파싱합니다."""
+    if ':' in repo_tag:
+        parts = repo_tag.rsplit(':', 1)
+        return parts[0], parts[1] if parts[1] else 'latest'
+    return repo_tag, 'latest'
+
+# ✅ 순수 비동기 함수 - 네트워크 작업이지만 예측 가능
+async def _calculate_blob_digest(content: bytes) -> str:
+    """Blob 내용에서 digest를 계산합니다."""
+    import hashlib
+    digest = hashlib.sha256(content).hexdigest()
+    return f"sha256:{digest}"
 ```
 
 **Benefits:**

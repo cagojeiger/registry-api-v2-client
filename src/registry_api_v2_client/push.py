@@ -6,12 +6,12 @@ from .core.connectivity import check_connectivity
 from .core.types import BlobInfo, ManifestInfo, RegistryConfig
 from .exceptions import RegistryError
 from .operations.blobs import upload_blob
-from .operations.manifests import create_manifest_v2, upload_manifest
+from .operations.manifests import _create_manifest_v2, upload_manifest
 from .tar.processor import process_tar_file
 from .tar.tags import extract_original_tags, get_primary_tag, parse_repository_tag
 
 
-async def upload_all_blobs(
+async def _upload_all_blobs(
     config: RegistryConfig, repository: str, tar_path: str, blob_infos: list[BlobInfo]
 ) -> list[str]:
     """Upload all blobs concurrently to registry.
@@ -33,7 +33,7 @@ async def upload_all_blobs(
     return await asyncio.gather(*tasks)
 
 
-async def create_and_upload_manifest(
+async def _create_and_upload_manifest(
     config: RegistryConfig, repository: str, tag: str, manifest_info: ManifestInfo
 ) -> str:
     """Create manifest and upload to registry.
@@ -48,23 +48,30 @@ async def create_and_upload_manifest(
         Manifest digest
     """
     # Create manifest
-    manifest = create_manifest_v2(manifest_info)
+    manifest = _create_manifest_v2(manifest_info)
 
     # Upload manifest
     return await upload_manifest(config, repository, tag, manifest)
 
 
 async def check_registry_connectivity(registry_url: str) -> bool:
-    """Check registry connectivity.
+    """레지스트리 연결 상태를 확인합니다.
 
     Args:
-        registry_url: Registry URL
+        registry_url: 레지스트리 URL (예: "http://localhost:15000", "https://registry.example.com")
 
     Returns:
-        True if registry is accessible
+        bool: 레지스트리 접근 가능 시 True
 
     Raises:
-        RegistryError: If connectivity check fails
+        RegistryError: 연결 확인 실패 시
+
+    Examples:
+        # 로컬 레지스트리 연결 확인
+        accessible = await check_registry_connectivity("http://localhost:15000")
+
+        # 원격 레지스트리 연결 확인
+        accessible = await check_registry_connectivity("https://registry.example.com")
     """
     config = RegistryConfig(url=registry_url)
     return await check_connectivity(config)
@@ -77,33 +84,42 @@ async def push_docker_tar(
     tag: str | None = None,
     timeout: int = 300,
 ) -> str:
-    """Push Docker tar file to registry asynchronously.
+    """Docker tar 파일을 레지스트리에 비동기로 푸시합니다.
 
-    This function automatically extracts the original repository and tag from the tar file
-    if not explicitly provided. This allows pushing images with their original tags.
+    tar 파일에서 자동으로 원본 저장소명과 태그를 추출하여 사용합니다.
+    명시적으로 지정하면 해당 값을 우선 사용합니다.
 
     Args:
-        tar_path: Path to Docker tar file
-        registry_url: Registry URL
-        repository: Repository name (optional, extracted from tar if not provided)
-        tag: Tag name (optional, extracted from tar if not provided)
-        timeout: Request timeout in seconds
+        tar_path: Docker tar 파일 경로
+            - 상대경로: "my-app.tar", "./images/nginx.tar", "../docker-images/app.tar"
+            - 절대경로: "/Users/user/images/my-app.tar", "/home/user/docker/nginx.tar"
+            - 현재 디렉토리: "nginx.tar" (현재 작업 디렉토리에서 찾음)
+        registry_url: 레지스트리 URL (예: "http://localhost:15000", "https://registry.example.com")
+        repository: 저장소 이름 (선택사항, tar에서 자동 추출됨. 예: "mycompany/myapp")
+        tag: 이미지 태그 (선택사항, tar에서 자동 추출됨. 예: "latest", "v1.0.0")
+        timeout: 요청 타임아웃 (초, 기본값: 300초)
 
     Returns:
-        Manifest digest of pushed image
+        str: 푸시된 이미지의 매니페스트 digest (예: "sha256:abc123...")
 
     Raises:
-        FileNotFoundError: If tar file doesn't exist
-        RegistryError: If push operation fails or no repository/tag can be determined
+        FileNotFoundError: tar 파일이 존재하지 않는 경우
+        RegistryError: 푸시 작업 실패 또는 저장소/태그를 결정할 수 없는 경우
 
     Examples:
-        # Use original tags from tar file
+        # 현재 디렉토리의 tar 파일 (상대경로)
         await push_docker_tar("nginx.tar", "http://localhost:15000")
 
-        # Override repository but keep original tag
+        # 하위 디렉토리의 tar 파일
+        await push_docker_tar("./docker-images/app.tar", "http://localhost:15000")
+
+        # 절대경로로 지정
+        await push_docker_tar("/Users/user/images/nginx.tar", "http://localhost:15000")
+
+        # 저장소명 덮어쓰기 (원본 태그 유지)
         await push_docker_tar("nginx.tar", "http://localhost:15000", repository="my-nginx")
 
-        # Override both repository and tag
+        # 저장소명과 태그 모두 덮어쓰기
         await push_docker_tar("nginx.tar", "http://localhost:15000", repository="my-nginx", tag="v1.0")
     """
     # Create registry configuration
@@ -149,10 +165,10 @@ async def push_docker_tar(
     all_blobs = [manifest_info.config] + list(manifest_info.layers)
 
     # Upload all blobs concurrently
-    await upload_all_blobs(config, final_repository, validated_tar_path, all_blobs)
+    await _upload_all_blobs(config, final_repository, validated_tar_path, all_blobs)
 
     # Create and upload manifest
-    return await create_and_upload_manifest(
+    return await _create_and_upload_manifest(
         config, final_repository, final_tag, manifest_info
     )
 
@@ -160,21 +176,30 @@ async def push_docker_tar(
 async def push_docker_tar_with_original_tags(
     tar_path: str, registry_url: str, timeout: int = 300
 ) -> str:
-    """Push Docker tar file using its original repository and tag.
+    """Docker tar 파일을 원본 저장소명과 태그로 푸시합니다.
 
-    This is a convenience function that always uses the original tags from the tar file.
+    tar 파일에서 자동으로 추출된 원본 태그를 사용하는 편의 함수입니다.
 
     Args:
-        tar_path: Path to Docker tar file
-        registry_url: Registry URL
-        timeout: Request timeout in seconds
+        tar_path: Docker tar 파일 경로
+            - 상대경로: "my-app.tar", "./images/nginx.tar"
+            - 절대경로: "/Users/user/images/my-app.tar"
+        registry_url: 레지스트리 URL (예: "http://localhost:15000")
+        timeout: 요청 타임아웃 (초, 기본값: 300초)
 
     Returns:
-        Manifest digest of pushed image
+        str: 푸시된 이미지의 매니페스트 digest
 
     Raises:
-        FileNotFoundError: If tar file doesn't exist
-        RegistryError: If push operation fails or no original tags found
+        FileNotFoundError: tar 파일이 존재하지 않는 경우
+        RegistryError: 푸시 작업 실패 또는 원본 태그를 찾을 수 없는 경우
+
+    Examples:
+        # 원본 태그 그대로 푸시
+        digest = await push_docker_tar_with_original_tags(
+            "nginx-exported.tar",
+            "http://localhost:15000"
+        )
     """
     return await push_docker_tar(
         tar_path=tar_path,
@@ -188,22 +213,36 @@ async def push_docker_tar_with_original_tags(
 async def push_docker_tar_with_all_original_tags(
     tar_path: str, registry_url: str, timeout: int = 300
 ) -> list[str]:
-    """Push Docker tar file with ALL original repository tags preserved.
+    """Docker tar 파일의 모든 원본 태그를 보존하여 푸시합니다.
 
-    This function extracts all original tags from the tar file and pushes the image
-    to the registry with each of those tags, preserving the complete original image metadata.
+    tar 파일에서 모든 원본 태그를 추출하여 각각의 태그로 이미지를 푸시하며,
+    완전한 원본 이미지 메타데이터를 보존합니다.
 
     Args:
-        tar_path: Path to Docker tar file
-        registry_url: Registry URL
-        timeout: Request timeout in seconds
+        tar_path: Docker tar 파일 경로
+            - 상대경로: "multi-tag-image.tar", "./exports/app.tar"
+            - 절대경로: "/Users/user/exports/multi-tag-image.tar"
+        registry_url: 레지스트리 URL (예: "http://localhost:15000")
+        timeout: 요청 타임아웃 (초, 기본값: 300초)
 
     Returns:
-        List of manifest digests for each pushed tag
+        list[str]: 각 태그별 매니페스트 digest 목록 (모든 digest는 동일한 이미지)
 
     Raises:
-        FileNotFoundError: If tar file doesn't exist
-        RegistryError: If push operation fails or no original tags found
+        FileNotFoundError: tar 파일이 존재하지 않는 경우
+        RegistryError: 푸시 작업 실패 또는 원본 태그를 찾을 수 없는 경우
+
+    Examples:
+        # 여러 태그로 동시 푸시
+        digests = await push_docker_tar_with_all_original_tags(
+            "app-v1.0-multi.tar",
+            "http://localhost:15000"
+        )
+        print(f"{len(digests)}개 태그로 푸시 완료: {digests}")
+
+    Note:
+        원본 tar 파일에 ['myapp:latest', 'myapp:v1.0', 'registry.io/myapp:prod'] 태그가 있다면
+        세 개의 태그 모두로 푸시됩니다.
 
     Example:
         # If tar contains ["nginx:alpine", "nginx:1.21-alpine"]
@@ -243,13 +282,13 @@ async def push_docker_tar_with_all_original_tags(
     # Upload all blobs once (they're the same for all tags)
     # We'll use the first repository for blob upload, but blobs are shared
     first_repo, _ = parse_repository_tag(original_tags[0])
-    await upload_all_blobs(config, first_repo, validated_tar_path, all_blobs)
+    await _upload_all_blobs(config, first_repo, validated_tar_path, all_blobs)
 
     # Push manifest for each original tag concurrently
     manifest_tasks = []
     for repo_tag in original_tags:
         repository, tag = parse_repository_tag(repo_tag)
-        task = create_and_upload_manifest(config, repository, tag, manifest_info)
+        task = _create_and_upload_manifest(config, repository, tag, manifest_info)
         manifest_tasks.append(task)
 
     # Execute all manifest uploads concurrently

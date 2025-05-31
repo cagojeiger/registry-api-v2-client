@@ -100,17 +100,28 @@ def validate_all_manifest_entries(
 
 
 def validate_docker_tar(tar_path: Path) -> bool:
-    """
-    Validate if a tar file is a valid Docker image tar file.
+    """tar 파일이 유효한 Docker 이미지 tar 파일인지 검증합니다.
 
     Args:
-        tar_path: Path to the tar file to validate
+        tar_path: 검증할 tar 파일 경로
+            - Path 객체: Path("/Users/user/images/app.tar")
+            - 상대경로도 지원: Path("./docker-images/nginx.tar")
 
     Returns:
-        True if valid Docker image tar file, False otherwise
+        bool: 유효한 Docker 이미지 tar 파일인 경우 True, 그렇지 않으면 False
 
     Raises:
-        ValidationError: If tar file is corrupted or invalid format
+        ValidationError: tar 파일이 손상되었거나 잘못된 형식인 경우
+
+    Examples:
+        # tar 파일 검증
+        from pathlib import Path
+
+        is_valid = validate_docker_tar(Path("nginx.tar"))
+        if is_valid:
+            print("유효한 Docker 이미지 tar 파일입니다")
+        else:
+            print("유효하지 않은 tar 파일입니다")
     """
     try:
         if not is_path_exists(tar_path):
@@ -151,17 +162,28 @@ def extract_and_parse_manifest(tar: tarfile.TarFile) -> list[dict[str, Any]]:
 
 
 def get_tar_manifest(tar_path: Path) -> list[dict[str, Any]]:
-    """
-    Extract and return the manifest from a Docker tar file.
+    """Docker tar 파일에서 매니페스트를 추출하여 반환합니다.
 
     Args:
-        tar_path: Path to the tar file
+        tar_path: tar 파일 경로
+            - Path 객체: Path("/Users/user/exports/nginx.tar")
+            - 상대경로: Path("./docker-exports/app.tar")
 
     Returns:
-        List of manifest entries
+        list[dict[str, Any]]: 매니페스트 엔트리 목록 (Docker Registry API v2 형식)
 
     Raises:
-        ValidationError: If tar file is invalid or manifest cannot be read
+        ValidationError: tar 파일이 유효하지 않거나 매니페스트를 읽을 수 없는 경우
+
+    Examples:
+        # Docker tar 파일에서 매니페스트 추출
+        from pathlib import Path
+
+        manifest = get_tar_manifest(Path("nginx.tar"))
+        for entry in manifest:
+            print(f"Config: {entry['Config']}")
+            print(f"RepoTags: {entry.get('RepoTags', [])}")
+            print(f"Layers: {len(entry['Layers'])}개")
     """
     if not validate_docker_tar(tar_path):
         raise ValidationError(f"Invalid Docker tar file: {tar_path}")

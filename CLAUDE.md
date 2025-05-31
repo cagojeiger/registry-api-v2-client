@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-이 파일은 Claude Code (claude.ai/code)가 이 저장소에서 작업할 때 참고할 가이드를 제공합니다.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 프로젝트 개요
 
@@ -42,6 +42,9 @@ uv run pytest tests/test_async_basic.py -v                    # 특정 테스트
 uv run pytest tests/test_validator.py::test_function_name -v  # 특정 테스트 실행
 uv run pytest -m "not integration"                           # 통합 테스트 제외
 REGISTRY_AVAILABLE=true uv run pytest -m integration         # 통합 테스트만
+
+# 문서 생성
+uv run pdoc registry_api_v2_client --output-dir docs-api  # API 문서 자동 생성 (한글)
 
 # 빌드 및 정리
 uv build                      # 패키지 빌드
@@ -154,6 +157,8 @@ asyncio.run(main())
 3. **타입 안전성**: 타입 힌트와 Pydantic 모델의 광범위한 사용
 4. **메모리 효율성**: 청크 blob 업로드 (5MB 청크), aiohttp로 스트리밍
 5. **오류 처리**: 컨텍스트가 포함된 포괄적인 비동기 예외 계층
+6. **내부 함수 숨김**: 내부 구현 함수는 `_` 접두사를 사용하여 공개 API에서 숨김
+7. **한글 문서화**: 모든 공개 API 함수는 한글 docstring과 상세한 경로 예시 제공
 
 ### 레지스트리 프로토콜 구현
 
@@ -185,6 +190,8 @@ asyncio.run(main())
 8. **원본 태그 보존**: Docker tar 파일 태그의 자동 추출 및 보존
 9. **메모리 효율성**: 대용량 파일을 위한 스트리밍과 5MB 청크 업로드
 10. **예외 체이닝**: 디버깅을 위한 적절한 `from e` 체이닝을 사용하는 모든 예외
+11. **자동 문서 생성**: pre-commit 훅이 코드 변경 시 한글 API 문서를 자동 생성
+12. **내부 함수 규칙**: `operations/`, `core/` 폴더의 헬퍼 함수는 `_함수명` 형태로 명명
 
 ## Docker 레지스트리 설정
 

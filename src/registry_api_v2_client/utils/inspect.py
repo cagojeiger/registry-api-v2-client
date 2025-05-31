@@ -182,18 +182,30 @@ def build_image_inspect(
 
 
 def inspect_docker_tar(tar_path: Path) -> ImageInspect:
-    """
-    Inspect a Docker tar file and return detailed image information.
+    """Docker tar 파일을 검사하여 상세한 이미지 정보를 반환합니다.
 
     Args:
-        tar_path: Path to the Docker tar file
+        tar_path: Docker tar 파일 경로
+            - Path 객체: Path("/Users/user/images/nginx.tar")
+            - 절대경로: Path("/home/user/docker/app.tar")
 
     Returns:
-        ImageInspect object with complete image information
+        ImageInspect: 완전한 이미지 정보 객체 (아키텍처, OS, 레이어, 환경변수 등)
 
     Raises:
-        ValidationError: If tar file is invalid
-        TarReadError: If tar file cannot be read
+        ValidationError: tar 파일이 유효하지 않은 경우
+        TarReadError: tar 파일을 읽을 수 없는 경우
+
+    Examples:
+        # Docker tar 파일 상세 검사
+        from pathlib import Path
+
+        inspect_result = inspect_docker_tar(Path("nginx.tar"))
+        print(f"아키텍처: {inspect_result.architecture}")
+        print(f"OS: {inspect_result.os}")
+        print(f"크기: {inspect_result.size:,} bytes")
+        print(f"레이어 수: {len(inspect_result.root_fs.layers)}")
+        print(f"환경변수: {inspect_result.config.env}")
     """
     if not validate_docker_tar(tar_path):
         raise ValidationError(f"Invalid Docker tar file: {tar_path}")

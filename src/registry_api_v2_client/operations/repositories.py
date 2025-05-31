@@ -8,7 +8,7 @@ from ..core.types import RegistryConfig
 from ..exceptions import RegistryError
 
 
-def extract_repositories_from_response(json_data: dict[str, Any] | None) -> list[str]:
+def _extract_repositories_from_response(json_data: dict[str, Any] | None) -> list[str]:
     """Extract repositories list from API response.
 
     Args:
@@ -24,7 +24,7 @@ def extract_repositories_from_response(json_data: dict[str, Any] | None) -> list
     return list(repositories) if isinstance(repositories, list) else []
 
 
-def extract_tags_from_response(json_data: dict[str, Any] | None) -> list[str]:
+def _extract_tags_from_response(json_data: dict[str, Any] | None) -> list[str]:
     """Extract tags list from API response.
 
     Args:
@@ -60,7 +60,7 @@ async def list_repositories(config: RegistryConfig) -> list[str]:
     session = await create_session()
     try:
         result = await make_get_request(session, url, config, expect_json=True)
-        return extract_repositories_from_response(result.json_data)
+        return _extract_repositories_from_response(result.json_data)
 
     except Exception as e:
         raise RegistryError(f"Failed to list repositories: {e}") from e
@@ -89,7 +89,7 @@ async def list_tags(config: RegistryConfig, repository: str) -> list[str]:
     session = await create_session()
     try:
         result = await make_get_request(session, url, config, expect_json=True)
-        return extract_tags_from_response(result.json_data)
+        return _extract_tags_from_response(result.json_data)
 
     except Exception as e:
         raise RegistryError(f"Failed to list tags for {repository}: {e}") from e

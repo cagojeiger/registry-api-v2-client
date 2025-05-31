@@ -26,8 +26,8 @@ from registry_api_v2_client.exceptions import (
     ValidationError,
 )
 from registry_api_v2_client.operations.manifests import (
-    calculate_manifest_digest,
-    create_manifest_v2,
+    _calculate_manifest_digest,
+    _create_manifest_v2,
 )
 from registry_api_v2_client.tar.tags import (
     extract_original_tags,
@@ -220,7 +220,7 @@ class TestManifestOperations:
             media_type="application/vnd.docker.distribution.manifest.v2+json",
         )
 
-        manifest = create_manifest_v2(manifest_info)
+        manifest = _create_manifest_v2(manifest_info)
 
         assert manifest["schemaVersion"] == 2
         assert (
@@ -237,7 +237,7 @@ class TestManifestOperations:
             "schemaVersion": 2,
             "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
         }
-        digest = calculate_manifest_digest(manifest)
+        digest = _calculate_manifest_digest(manifest)
         assert digest.startswith("sha256:")
         assert len(digest) == 71  # "sha256:" + 64 hex chars
 

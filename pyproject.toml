@@ -142,6 +142,7 @@ line_length = 88
 [dependency-groups]
 dev = [
     "mypy>=1.16.0",
+    "pdoc>=15.0.3",
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "pytest-asyncio>=1.0.0",

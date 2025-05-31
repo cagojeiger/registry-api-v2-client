@@ -1,73 +1,105 @@
-# API Reference
+# API 레퍼런스
 
-Complete reference for the async Registry API v2 Client.
+비동기 Registry API v2 클라이언트의 완전한 레퍼런스 가이드입니다.
 
-## Overview
+## 개요
 
-This client provides high-performance async operations for Docker Registry API v2, featuring:
-- **Concurrent blob uploads** for maximum throughput
-- **Original tag preservation** from Docker tar files  
-- **Thread pool integration** for file I/O operations
-- **Comprehensive error handling** with specific exception types
-- **Type safety** with full type hints
+이 클라이언트는 Docker Registry API v2를 위한 고성능 비동기 작업을 제공합니다:
+- **🚀 동시 blob 업로드**: 최대 처리량을 위한 병렬 업로드
+- **🏷️ 원본 태그 보존**: Docker tar 파일의 원본 태그 정보 자동 추출
+- **🧵 스레드 풀 통합**: 파일 I/O 작업이 이벤트 루프를 차단하지 않음
+- **🛡️ 포괄적인 오류 처리**: 구체적인 예외 타입으로 명확한 오류 처리
+- **🔒 타입 안전성**: 완전한 타입 힌트와 런타임 검증
+- **📚 한글 문서화**: 모든 API 함수에 대한 한국어 문서와 예제
 
-## Installation
+## 설치
 
 ```bash
 pip install registry-api-v2-client
 ```
 
-## Quick Start
+## 빠른 시작
 
 ```python
 import asyncio
-from registry_api_v2_client import check_registry_connectivity, push_docker_tar
+from registry_api_v2_client import (
+    check_registry_connectivity, 
+    push_docker_tar,
+    list_repositories,
+    extract_original_tags
+)
 
 async def main():
-    # Check registry connectivity
-    accessible = await check_registry_connectivity("http://localhost:15000")
+    registry_url = "http://localhost:15000"
+    
+    # 레지스트리 연결 확인
+    accessible = await check_registry_connectivity(registry_url)
+    print(f"✅ 레지스트리 접근 가능: {accessible}")
     
     if accessible:
-        # Push a Docker tar file
+        # Docker tar 파일 푸시
         digest = await push_docker_tar(
-            "my-image.tar", 
-            "http://localhost:15000", 
-            "myapp", 
-            "latest"
+            "my-image.tar",      # tar 파일 경로
+            registry_url,        # 레지스트리 URL
+            "myapp",            # 저장소 이름
+            "latest"            # 태그
         )
-        print(f"Pushed with digest: {digest}")
+        print(f"🚀 푸시 완료, digest: {digest}")
+        
+        # 저장소 목록 조회
+        repos = await list_repositories(registry_url)
+        print(f"📂 저장소 목록: {repos}")
 
+# 비동기 코드 실행
 asyncio.run(main())
 ```
 
-## Main API Functions
+## 주요 API 함수
 
-### Connectivity
+### 🔗 연결성 확인
 
 #### `check_registry_connectivity(registry_url: str, timeout: int = 30) -> bool`
 
-Check if a Docker Registry supports API v2 and is accessible.
+Docker 레지스트리가 API v2를 지원하고 접근 가능한지 확인합니다.
 
 ```python
 async def connectivity_example():
-    # Basic connectivity check
+    # 기본 연결성 확인
     accessible = await check_registry_connectivity("http://localhost:15000")
-    print(f"Registry accessible: {accessible}")
+    print(f"레지스트리 접근 가능: {accessible}")
     
-    # With custom timeout
+    # 사용자 정의 타임아웃
     accessible = await check_registry_connectivity(
         "http://slow-registry.com", 
         timeout=60
     )
+    print(f"느린 레지스트리 접근 가능: {accessible}")
+    
+    # 여러 레지스트리 동시 확인
+    registries = [
+        "http://localhost:15000",
+        "https://registry-1.docker.io",
+        "https://my-private-registry.com"
+    ]
+    
+    tasks = [check_registry_connectivity(url) for url in registries]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    for url, result in zip(registries, results):
+        if isinstance(result, Exception):
+            print(f"❌ {url}: 연결 실패 - {result}")
+        else:
+            print(f"{'✅' if result else '❌'} {url}: {'접근 가능' if result else '접근 불가'}")
 ```
 
-**Parameters:**
-- `registry_url`: Registry URL (e.g., "http://localhost:15000", "https://registry.io")
-- `timeout`: Connection timeout in seconds (default: 30)
+**매개변수:**
+- `registry_url`: 레지스트리 URL (예: "http://localhost:15000", "https://registry.io")
+- `timeout`: 연결 타임아웃(초) (기본값: 30)
 
-**Returns:** `True` if registry is accessible and supports v2 API
+**반환값:** 레지스트리가 접근 가능하고 v2 API를 지원하면 `True`
 
-**Raises:** `RegistryError` if connection fails or registry doesn't support v2
+**예외:**
+- `RegistryError`: 연결 실패 또는 레지스트리가 v2를 지원하지 않는 경우
 
 ---
 

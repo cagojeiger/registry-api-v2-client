@@ -14,7 +14,7 @@ from ..core.types import ManifestInfo, RegistryConfig, RequestResult
 from ..exceptions import RegistryError
 
 
-def create_manifest_headers(accept_type: str | None = None) -> dict[str, str]:
+def _create_manifest_headers(accept_type: str | None = None) -> dict[str, str]:
     """Create headers for manifest requests."""
     headers = {}
     if accept_type:
@@ -22,7 +22,7 @@ def create_manifest_headers(accept_type: str | None = None) -> dict[str, str]:
     return headers
 
 
-def create_manifest_v2(manifest_info: ManifestInfo) -> dict[str, Any]:
+def _create_manifest_v2(manifest_info: ManifestInfo) -> dict[str, Any]:
     """Create Docker manifest v2 from manifest info.
 
     Args:
@@ -46,7 +46,7 @@ def create_manifest_v2(manifest_info: ManifestInfo) -> dict[str, Any]:
     }
 
 
-def parse_manifest_response(result: RequestResult) -> dict[str, Any]:
+def _parse_manifest_response(result: RequestResult) -> dict[str, Any]:
     """Parse manifest from response.
 
     Args:
@@ -68,7 +68,7 @@ def parse_manifest_response(result: RequestResult) -> dict[str, Any]:
     return manifest
 
 
-def calculate_manifest_digest(manifest: dict[str, Any]) -> str:
+def _calculate_manifest_digest(manifest: dict[str, Any]) -> str:
     """Calculate manifest digest.
 
     Args:
@@ -100,12 +100,12 @@ async def get_manifest(
         Manifest dictionary
     """
     url = f"{config.base_url}/v2/{repository}/manifests/{reference}"
-    headers = create_manifest_headers(media_type)
+    headers = _create_manifest_headers(media_type)
 
     session = await create_session()
     try:
         result = await make_get_request(session, url, config, headers, expect_json=True)
-        return parse_manifest_response(result)
+        return _parse_manifest_response(result)
     finally:
         await session.close()
 
@@ -135,7 +135,7 @@ async def upload_manifest(
 
         # Return digest from header or calculate it
         manifest_digest = result.headers.get("Docker-Content-Digest")
-        return manifest_digest or calculate_manifest_digest(manifest)
+        return manifest_digest or _calculate_manifest_digest(manifest)
 
     finally:
         await session.close()
