@@ -5,6 +5,7 @@ import os
 import socket
 
 import pytest
+import pytest_asyncio
 
 from registry_api_v2_client import check_registry_connectivity
 from tests.helpers import TestContext
@@ -17,7 +18,7 @@ def is_port_open(host, port):
             sock.settimeout(1)
             result = sock.connect_ex((host, port))
             return result == 0
-    except:
+    except Exception:
         return False
 
 
@@ -27,7 +28,7 @@ def registry_port():
     return int(os.getenv("REGISTRY_PORT", "15000"))
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def registry_url(registry_port):
     """Get registry URL and ensure it's available."""
     url = f"http://localhost:{registry_port}"
@@ -40,7 +41,7 @@ async def registry_url(registry_port):
                 result = await check_registry_connectivity(url)
                 if result:
                     return url
-        except:
+        except Exception:
             pass
 
         if attempt < max_attempts - 1:
@@ -50,7 +51,7 @@ async def registry_url(registry_port):
     pytest.skip(f"Registry not available at {url}")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_context(registry_url):
     """Create isolated test context."""
     async with TestContext(registry_url) as ctx:
@@ -72,9 +73,11 @@ def pytest_collection_modifyitems(config, items):
     skip_integration = pytest.mark.skip(reason="Registry not available")
 
     for item in items:
-        if "integration" in item.keywords:
-            if not os.getenv("REGISTRY_AVAILABLE", "false").lower() == "true":
-                item.add_marker(skip_integration)
+        if (
+            "integration" in item.keywords
+            and os.getenv("REGISTRY_AVAILABLE", "false").lower() != "true"
+        ):
+            item.add_marker(skip_integration)
 
 
 # Async event loop fixture
