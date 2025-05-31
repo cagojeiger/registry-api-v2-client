@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.1 (2025-05-31)
+
+### Bug Fixes
+
+- Update CI workflow for async architecture compatibility
+  ([`84033d4`](https://github.com/cagojeiger/registry-api-v2-client/commit/84033d43b4907a16bab1ff789a5861b4c367c167))
+
+
 ## v1.1.0 (2025-05-30)
 
 ### Features
