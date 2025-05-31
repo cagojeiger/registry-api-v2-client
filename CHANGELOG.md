@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.2 (2025-05-31)
+
+### Bug Fixes
+
+- Make CI workflow compatible with both main and feature branches
+  ([`c9f863d`](https://github.com/cagojeiger/registry-api-v2-client/commit/c9f863d3d1eb873c29cb7f5ee63755c1fcb8b4bc))
+
+
 ## v1.1.1 (2025-05-31)
 
 ### Bug Fixes
