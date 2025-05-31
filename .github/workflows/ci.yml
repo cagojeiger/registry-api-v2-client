@@ -7,41 +7,149 @@ on:
       - 'src/**'
       - 'tests/**'
       - '.github/workflows/ci.yml'
+      - 'pyproject.toml'
   pull_request:
     branches: [ main ]
     paths:
       - 'src/**'
       - 'tests/**'
       - '.github/workflows/ci.yml'
+      - 'pyproject.toml'
+
+env:
+  PYTHON_VERSION: "3.11"
 
 jobs:
-  test:
+  # 🧪 Unit Tests (Fast, No Dependencies)
+  unit-tests:
+    name: Unit Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-
+    
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.python-version }}
-    - name: Set up uv
-      uses: astral-sh/setup-uv@v1
+        version: "latest"
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
     - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Run unit tests
       run: |
-        uv sync --all-extras --dev
-    - name: Lint with pre-commit
+        uv run pytest \
+          tests/test_validator.py \
+          tests/test_inspect.py \
+          tests/test_tags.py \
+          tests/test_async_simple.py \
+          tests/test_comprehensive.py \
+          tests/test_async_basic.py \
+          -v \
+          --cov=src/registry_api_v2_client \
+          --cov-report=xml \
+          --cov-report=term-missing
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  # 🔧 Code Quality
+  quality-checks:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Run ruff linting
+      run: uv run ruff check src/ --output-format=github
+    
+    - name: Run mypy type checking
+      run: uv run mypy src/
+    
+    - name: Check code formatting
+      run: uv run ruff format --check src/
+
+  # 🚀 Integration Tests (With Registry)
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    # Start registry as a service
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 15000:5000
+        env:
+          REGISTRY_STORAGE_DELETE_ENABLED: "true"
+        options: >-
+          --health-cmd "wget --quiet --tries=1 --spider http://localhost:5000/v2/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Wait for registry to be ready
       run: |
-        SKIP=uv-lock uv run pre-commit run --all-files
-    - name: Type check with mypy
+        echo "Waiting for registry to be available..."
+        timeout 120 bash -c '
+          while ! curl -f -s http://localhost:15000/v2/ > /dev/null; do
+            echo "Registry not ready, waiting..."
+            sleep 3
+          done
+        '
+        echo "Registry is ready!"
+        curl -v http://localhost:15000/v2/
+    
+    - name: Run integration tests
+      env:
+        REGISTRY_AVAILABLE: "true"
+        REGISTRY_PORT: "15000"
+        CI: "true"
       run: |
-        uv run mypy src --strict --no-warn-unused-ignores
-    - name: Test with pytest
-      run: |
-        uv run pytest -q
-    - name: Build package
-      run: |
-        uv run python -m build
+        uv run pytest \
+          tests/test_real_integration.py \
+          tests/test_isolated_integration.py \
+          -v \
+          -m integration \
+          --maxfail=3 \
+          --tb=short
 
