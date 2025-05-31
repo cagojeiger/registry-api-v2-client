@@ -1,0 +1,202 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # 🧪 Unit Tests (Fast, No Dependencies)
+  unit-tests:
+    name: Unit Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Run unit tests
+      run: |
+        uv run pytest \
+          tests/test_validator.py \
+          tests/test_inspect.py \
+          tests/test_tags.py \
+          tests/test_async_simple.py \
+          -v \
+          --cov=src/registry_api_v2_client \
+          --cov-report=xml \
+          --cov-report=term-missing
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  # 🔧 Code Quality
+  quality-checks:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Run ruff linting
+      run: uv run ruff check src/ --output-format=github
+    
+    - name: Run mypy type checking
+      run: uv run mypy src/
+    
+    - name: Check code formatting
+      run: uv run ruff format --check src/
+
+  # 🚀 Integration Tests (With Registry)
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    # Start registry as a service
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 15000:5000
+        env:
+          REGISTRY_STORAGE_DELETE_ENABLED: "true"
+        options: >-
+          --health-cmd "wget --quiet --tries=1 --spider http://localhost:5000/v2/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Wait for registry to be ready
+      run: |
+        echo "Waiting for registry to be available..."
+        timeout 120 bash -c '
+          while ! curl -f -s http://localhost:15000/v2/ > /dev/null; do
+            echo "Registry not ready, waiting..."
+            sleep 3
+          done
+        '
+        echo "Registry is ready!"
+        curl -v http://localhost:15000/v2/
+    
+    - name: Run integration tests
+      env:
+        REGISTRY_AVAILABLE: "true"
+        REGISTRY_PORT: "15000"
+        CI: "true"
+      run: |
+        uv run pytest \
+          tests/test_real_integration.py \
+          -v \
+          -m integration \
+          --maxfail=1 \
+          --tb=short
+
+  # 🔄 Parallel Integration Tests (Test Isolation)
+  parallel-integration-tests:
+    name: Parallel Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-group: [1, 2, 3]
+    
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 15000:5000
+        env:
+          REGISTRY_STORAGE_DELETE_ENABLED: "true"
+        options: >-
+          --health-cmd "wget --quiet --tries=1 --spider http://localhost:5000/v2/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Wait for registry
+      run: |
+        timeout 120 bash -c '
+          while ! curl -f -s http://localhost:15000/v2/ > /dev/null; do
+            sleep 3
+          done
+        '
+    
+    - name: Run parallel integration tests
+      env:
+        REGISTRY_AVAILABLE: "true"
+        REGISTRY_PORT: "15000"
+        CI: "true"
+        PYTEST_XDIST_WORKER: "group-${{ matrix.test-group }}"
+      run: |
+        # Run different test subsets in parallel
+        case ${{ matrix.test-group }} in
+          1) TEST_FILES="tests/test_real_integration.py::test_registry_connectivity tests/test_real_integration.py::test_list_repositories" ;;
+          2) TEST_FILES="tests/test_real_integration.py::test_tag_extraction_from_tar tests/test_real_integration.py::test_sync_operations_work" ;;
+          3) TEST_FILES="tests/test_real_integration.py::test_concurrent_operations" ;;
+        esac
+        
+        uv run pytest $TEST_FILES -v -m integration --tb=short

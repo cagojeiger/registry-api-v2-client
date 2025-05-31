@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.0 (2025-05-30)
+
+### Features
+
+- Add local Docker Registry setup for development
+  ([`8a154f1`](https://github.com/cagojeiger/registry-api-v2-client/commit/8a154f1942fbdbab1d562e5c32124d54feae4a44))
+
+
 ## v1.0.0 (2025-05-30)
 
 - Initial Release
