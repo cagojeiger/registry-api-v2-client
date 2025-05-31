@@ -3,12 +3,12 @@ services:
     image: registry:2
     container_name: local-registry
     ports:
-      - "5000:5000"
+      - "15000:15000"
     volumes:
       - registry_data:/var/lib/registry
     environment:
       REGISTRY_STORAGE_DELETE_ENABLED: "true"
-      REGISTRY_HTTP_ADDR: "0.0.0.0:5000"
+      REGISTRY_HTTP_ADDR: "0.0.0.0:15000"
     restart: unless-stopped
 
 volumes:

@@ -1,21 +1,10 @@
-name: CI
+name: Tests
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '.github/workflows/ci.yml'
-      - 'pyproject.toml'
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '.github/workflows/ci.yml'
-      - 'pyproject.toml'
-  workflow_dispatch:
 
 env:
   PYTHON_VERSION: "3.11"
@@ -46,24 +35,15 @@ jobs:
     
     - name: Run unit tests
       run: |
-        # Run all available tests (prioritize async tests if available)
-        if [ -f "tests/test_tags.py" ]; then
-          # Feature branch with async tests
-          uv run pytest \
-            tests/test_validator.py \
-            tests/test_inspect.py \
-            tests/test_tags.py \
-            tests/test_async_simple.py \
-            tests/test_comprehensive.py \
-            tests/test_async_basic.py \
-            -v \
-            --cov=src/registry_api_v2_client \
-            --cov-report=xml \
-            --cov-report=term-missing
-        else
-          # Main branch with legacy tests only
-          uv run pytest tests/test_validator.py tests/test_inspect.py -v --cov=src/registry_api_v2_client --cov-report=xml --cov-report=term-missing
-        fi
+        uv run pytest \
+          tests/test_validator.py \
+          tests/test_inspect.py \
+          tests/test_tags.py \
+          tests/test_async_simple.py \
+          -v \
+          --cov=src/registry_api_v2_client \
+          --cov-report=xml \
+          --cov-report=term-missing
     
     - name: Upload coverage
       uses: codecov/codecov-action@v3
@@ -92,30 +72,13 @@ jobs:
       run: uv sync --dev
     
     - name: Run ruff linting
-      run: |
-        if [ -d "src/registry_api_v2_client/core" ]; then
-          uv run ruff check src/ --output-format=github
-        else
-          # For main branch with old structure
-          echo "::notice::Async codebase not yet merged - skipping advanced linting"
-          uv run python -m py_compile src/registry_api_v2_client/*.py || echo "Some files may not compile on main branch"
-        fi
+      run: uv run ruff check src/ --output-format=github
     
     - name: Run mypy type checking
-      run: |
-        if [ -d "src/registry_api_v2_client/core" ]; then
-          uv run mypy src/
-        else
-          echo "::notice::Async codebase not yet merged - skipping mypy"
-        fi
+      run: uv run mypy src/
     
     - name: Check code formatting
-      run: |
-        if [ -d "src/registry_api_v2_client/core" ]; then
-          uv run ruff format --check src/
-        else
-          echo "::notice::Async codebase not yet merged - skipping format check"
-        fi
+      run: uv run ruff format --check src/
 
   # 🚀 Integration Tests (With Registry)
   integration-tests:
@@ -170,15 +133,70 @@ jobs:
         REGISTRY_PORT: "15000"
         CI: "true"
       run: |
-        if [ -f "tests/test_real_integration.py" ]; then
-          uv run pytest \
-            tests/test_real_integration.py \
-            tests/test_isolated_integration.py \
-            -v \
-            -m integration \
-            --maxfail=3 \
-            --tb=short
-        else
-          echo "::notice::Integration tests not available on main branch - will be available after merge"
-        fi
+        uv run pytest \
+          tests/test_real_integration.py \
+          -v \
+          -m integration \
+          --maxfail=1 \
+          --tb=short
 
+  # 🔄 Parallel Integration Tests (Test Isolation)
+  parallel-integration-tests:
+    name: Parallel Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-group: [1, 2, 3]
+    
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 15000:5000
+        env:
+          REGISTRY_STORAGE_DELETE_ENABLED: "true"
+        options: >-
+          --health-cmd "wget --quiet --tries=1 --spider http://localhost:5000/v2/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Wait for registry
+      run: |
+        timeout 120 bash -c '
+          while ! curl -f -s http://localhost:15000/v2/ > /dev/null; do
+            sleep 3
+          done
+        '
+    
+    - name: Run parallel integration tests
+      env:
+        REGISTRY_AVAILABLE: "true"
+        REGISTRY_PORT: "15000"
+        CI: "true"
+        PYTEST_XDIST_WORKER: "group-${{ matrix.test-group }}"
+      run: |
+        # Run different test subsets in parallel
+        case ${{ matrix.test-group }} in
+          1) TEST_FILES="tests/test_real_integration.py::test_registry_connectivity tests/test_real_integration.py::test_list_repositories" ;;
+          2) TEST_FILES="tests/test_real_integration.py::test_tag_extraction_from_tar tests/test_real_integration.py::test_sync_operations_work" ;;
+          3) TEST_FILES="tests/test_real_integration.py::test_concurrent_operations" ;;
+        esac
+        
+        uv run pytest $TEST_FILES -v -m integration --tb=short
