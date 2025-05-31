@@ -227,7 +227,9 @@ async def upload_blob_monolithic(
     upload_session = await start_upload(session, config, repository)
 
     # Complete upload with digest
-    url = f"{upload_session.upload_url}?digest={digest}"
+    # Use & if URL already has query parameters, otherwise use ?
+    separator = "&" if "?" in upload_session.upload_url else "?"
+    url = f"{upload_session.upload_url}{separator}digest={digest}"
 
     headers = {
         "Content-Type": "application/octet-stream",
