@@ -30,12 +30,12 @@ def extract_repo_tags_from_manifest(tar_path: str) -> list[str]:
                 manifest_content = manifest_member.read().decode("utf-8")
                 manifest_data = json.loads(manifest_content)
 
-            except KeyError:
-                raise ValidationError("manifest.json not found in tar file")
+            except KeyError as e:
+                raise ValidationError("manifest.json not found in tar file") from e
             except json.JSONDecodeError as e:
-                raise ValidationError(f"Invalid JSON in manifest.json: {e}")
+                raise ValidationError(f"Invalid JSON in manifest.json: {e}") from e
             except UnicodeDecodeError as e:
-                raise ValidationError(f"Cannot decode manifest.json: {e}")
+                raise ValidationError(f"Cannot decode manifest.json: {e}") from e
 
         # Validate manifest structure
         if not isinstance(manifest_data, list) or not manifest_data:
@@ -53,7 +53,7 @@ def extract_repo_tags_from_manifest(tar_path: str) -> list[str]:
         return repo_tags
 
     except tarfile.TarError as e:
-        raise TarReadError(f"Cannot read tar file: {e}")
+        raise TarReadError(f"Cannot read tar file: {e}") from e
 
 
 def extract_repo_tags_from_repositories(tar_path: str) -> list[str]:
@@ -80,24 +80,24 @@ def extract_repo_tags_from_repositories(tar_path: str) -> list[str]:
                 repos_content = repos_member.read().decode("utf-8")
                 repos_data = json.loads(repos_content)
 
-            except KeyError:
-                raise ValidationError("repositories file not found in tar file")
+            except KeyError as e:
+                raise ValidationError("repositories file not found in tar file") from e
             except json.JSONDecodeError as e:
-                raise ValidationError(f"Invalid JSON in repositories file: {e}")
+                raise ValidationError(f"Invalid JSON in repositories file: {e}") from e
             except UnicodeDecodeError as e:
-                raise ValidationError(f"Cannot decode repositories file: {e}")
+                raise ValidationError(f"Cannot decode repositories file: {e}") from e
 
         # Extract tags from repositories structure: {"repo": {"tag": "digest"}}
         repo_tags = []
         for repo_name, tag_dict in repos_data.items():
             if isinstance(tag_dict, dict):
-                for tag_name in tag_dict.keys():
+                for tag_name in tag_dict:
                     repo_tags.append(f"{repo_name}:{tag_name}")
 
         return repo_tags
 
     except tarfile.TarError as e:
-        raise TarReadError(f"Cannot read tar file: {e}")
+        raise TarReadError(f"Cannot read tar file: {e}") from e
 
 
 def extract_original_tags(tar_path: str) -> list[str]:

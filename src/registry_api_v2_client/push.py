@@ -222,7 +222,9 @@ async def push_docker_tar_with_all_original_tags(
             None, extract_original_tags, tar_path
         )
     except Exception as e:
-        raise RegistryError(f"Failed to extract original tags from tar file: {e}")
+        raise RegistryError(
+            f"Failed to extract original tags from tar file: {e}"
+        ) from e
 
     if not original_tags:
         raise RegistryError(
